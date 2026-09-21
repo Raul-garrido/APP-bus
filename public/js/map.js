@@ -19,15 +19,23 @@ export function initMap(containerId) {
 
 // Sin trazado real de calle (CRTM solo da un KML aparte por itinerario, ver README): se
 // dibuja una polyline uniendo las paradas en orden, que ya viene en el sentido de
-// circulación de cada itinerario.
+// circulación de cada itinerario. Si el backend pudo descargar y parsear el KML real de
+// CRTM (routeSegments), se usa ese trazado fiel a la carretera; si no (falló la descarga,
+// formato inesperado...), se cae de vuelta a unir las paradas en línea recta.
 export function drawItineraries(map, itineraries) {
   const group = L.layerGroup().addTo(map);
   const stopMarkers = new Map();
 
   for (const it of itineraries) {
-    const latlngs = it.stops.filter((s) => Number.isFinite(s.lat)).map((s) => [s.lat, s.lon]);
-    if (latlngs.length > 1) {
-      L.polyline(latlngs, { color: '#2563eb', weight: 3, opacity: 0.55 }).addTo(group);
+    const segments =
+      it.routeSegments && it.routeSegments.length
+        ? it.routeSegments
+        : [it.stops.filter((s) => Number.isFinite(s.lat)).map((s) => [s.lat, s.lon])];
+
+    for (const segment of segments) {
+      if (segment.length > 1) {
+        L.polyline(segment, { color: '#2563eb', weight: 3, opacity: 0.55 }).addTo(group);
+      }
     }
     for (const stop of it.stops) {
       if (!Number.isFinite(stop.lat) || stopMarkers.has(stop.codStop)) continue;

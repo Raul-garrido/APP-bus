@@ -10,6 +10,7 @@ import {
   CrtmError,
 } from './crtmClient.js';
 import { extractVehicles } from './vehicleParser.js';
+import { getKmlRoute } from './kmlClient.js';
 import { withCache } from './cache.js';
 
 const router = Router();
@@ -34,6 +35,7 @@ function itinerariesByDirection(info) {
       codItinerary: it.codItinerary,
       name: it.name,
       direction: it.direction,
+      kml: it.kml,
       stops: asArray(it.stops?.StopInformation).map((stop) => ({
         codStop: stop.codStop,
         shortCodStop: stop.shortCodStop,
@@ -91,6 +93,22 @@ router.get(
     const info = data?.lines?.LineInformation;
     if (!info) return res.status(404).json({ error: true, message: 'Línea no encontrada' });
 
+    const itineraries = await Promise.all(
+      itinerariesByDirection(info).map(async ({ kml, ...it }) => {
+        let routeSegments = [];
+        if (kml) {
+          try {
+            routeSegments = await withCache(`kmlRoute:${it.codItinerary}`, STATIC_TTL_MS, () => getKmlRoute(kml));
+          } catch (err) {
+            // Ver kmlClient.js: si falla, el frontend cae de vuelta a unir las paradas en
+            // línea recta -- no es un error del que dependa el resto de la respuesta.
+            console.error(`No se pudo cargar el KML de ${it.codItinerary}:`, err.message);
+          }
+        }
+        return { ...it, routeSegments };
+      })
+    );
+
     res.set('Cache-Control', 'public, max-age=300');
     res.json({
       codLine: info.codLine,
@@ -98,7 +116,7 @@ router.get(
       description: info.description,
       colorLine: info.colorLine,
       textColorLine: info.text_colorLine,
-      itineraries: itinerariesByDirection(info),
+      itineraries,
     });
   })
 );
