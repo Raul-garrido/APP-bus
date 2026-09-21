@@ -1,12 +1,12 @@
-import { createBusIcon, updateBusIconRotation } from './busIcon.js';
-import { distanceMeters, bearingDegrees } from './geo.js';
+import { createBusIcon } from './busIcon.js';
+import { distanceMeters } from './geo.js';
 
 const MADRID_CENTER = [40.4168, -3.7038];
 const ANIMATION_MS = 1500;
-// Movimiento mínimo (metros) para recalcular el rumbo por vector anterior->nuevo en vez
-// de mantener el último rumbo conocido -- evita que el bus "tiemble" de orientación
-// cuando está parado y el GPS solo tiene ruido de unos pocos metros.
-const MIN_MOVEMENT_FOR_HEADING_M = 5;
+// Movimiento mínimo (metros) para actualizar la velocidad estimada del bus -- evita que
+// el ruido normal del GPS cuando está parado (unos pocos metros) se lea como que va a
+// varios km/h.
+const MIN_MOVEMENT_FOR_SPEED_M = 5;
 
 export function initMap(containerId) {
   const map = L.map(containerId, { zoomControl: true }).setView(MADRID_CENTER, 11);
@@ -64,7 +64,8 @@ export function drawItineraries(map, itineraries, { onStopClick } = {}) {
 
 // Gestiona los marcadores de autobús: altas/bajas según qué vehículos siguen circulando,
 // animación de la posición anterior a la nueva (en vez de saltar de golpe) y selección /
-// resaltado de un vehículo concreto.
+// resaltado de un vehículo concreto. El icono mira a un lado u otro según el sentido real
+// de la línea (direction 1/2, dato fiable de CRTM) -- ver busIcon.js.
 export class BusLayer {
   constructor(map, { onSelect } = {}) {
     this.map = map;
@@ -98,9 +99,8 @@ export class BusLayer {
   }
 
   _create(v, now) {
-    const heading = v.heading ?? 0;
     const marker = L.marker([v.lat, v.lon], {
-      icon: createBusIcon(L, { heading, highlighted: v.id === this.selectedId }),
+      icon: createBusIcon(L, { direction: v.direction, highlighted: v.id === this.selectedId }),
     }).addTo(this.map);
     marker.on('click', () => this.select(v.id));
 
@@ -108,7 +108,6 @@ export class BusLayer {
       marker,
       lat: v.lat,
       lon: v.lon,
-      heading,
       direction: v.direction,
       lastUpdate: now,
       speedMps: null,
@@ -123,18 +122,16 @@ export class BusLayer {
     const movedM = distanceMeters(from, to);
     const speedMps = movedM / elapsedS;
 
-    // Preferimos el rumbo que mande la propia API (heading/bearing real del vehículo) si
-    // existe; si no, lo aproximamos por el vector entre la posición anterior y la nueva.
-    let heading = newV.heading;
-    if (heading === null || heading === undefined) {
-      heading = movedM >= MIN_MOVEMENT_FOR_HEADING_M ? bearingDegrees(from, to) : state.heading;
+    // Un vehículo físico puede, entre un servicio y el siguiente, pasar a cubrir el otro
+    // sentido de la línea -- si cambia, hay que espejar el icono.
+    if (String(newV.direction) !== String(state.direction)) {
+      state.marker.setIcon(createBusIcon(L, { direction: newV.direction, highlighted: newV.id === this.selectedId }));
     }
 
     if (state.raf) cancelAnimationFrame(state.raf);
     const startLat = state.lat;
     const startLon = state.lon;
     const startTime = performance.now();
-    const finalHeading = heading;
 
     const step = (t) => {
       const progress = Math.min(1, (t - startTime) / ANIMATION_MS);
@@ -142,17 +139,15 @@ export class BusLayer {
       const lat = startLat + (to.lat - startLat) * eased;
       const lon = startLon + (to.lon - startLon) * eased;
       state.marker.setLatLng([lat, lon]);
-      updateBusIconRotation(state.marker.getElement(), finalHeading);
       state.raf = progress < 1 ? requestAnimationFrame(step) : null;
     };
     state.raf = requestAnimationFrame(step);
 
     state.lat = newV.lat;
     state.lon = newV.lon;
-    state.heading = heading;
     state.direction = newV.direction;
     state.lastUpdate = now;
-    if (movedM >= MIN_MOVEMENT_FOR_HEADING_M) state.speedMps = speedMps;
+    if (movedM >= MIN_MOVEMENT_FOR_SPEED_M) state.speedMps = speedMps;
   }
 
   select(id) {
@@ -162,7 +157,7 @@ export class BusLayer {
     for (const [vid, state] of this.vehicles) {
       if (vid !== id && vid !== prevSelected) continue;
       const highlighted = vid === this.selectedId;
-      state.marker.setIcon(createBusIcon(L, { heading: state.heading, highlighted }));
+      state.marker.setIcon(createBusIcon(L, { direction: state.direction, highlighted }));
     }
 
     if (this.selectedId) this.map.panTo([this.vehicles.get(id).lat, this.vehicles.get(id).lon]);
@@ -172,7 +167,7 @@ export class BusLayer {
   getState(id) {
     const s = this.vehicles.get(id);
     if (!s) return null;
-    return { lat: s.lat, lon: s.lon, heading: s.heading, speedMps: s.speedMps, direction: s.direction };
+    return { lat: s.lat, lon: s.lon, speedMps: s.speedMps, direction: s.direction };
   }
 
   getAllStates() {
@@ -180,7 +175,6 @@ export class BusLayer {
       id,
       lat: s.lat,
       lon: s.lon,
-      heading: s.heading,
       speedMps: s.speedMps,
       direction: s.direction,
     }));
@@ -191,7 +185,7 @@ export class BusLayer {
     const prevId = this.selectedId;
     this.selectedId = null;
     const state = this.vehicles.get(prevId);
-    if (state) state.marker.setIcon(createBusIcon(L, { heading: state.heading, highlighted: false }));
+    if (state) state.marker.setIcon(createBusIcon(L, { direction: state.direction, highlighted: false }));
     if (this.onSelect) this.onSelect(null, null);
   }
 

@@ -4,10 +4,10 @@ import { asArray } from './crtmClient.js';
 //
 // { "vehiclesLocation": { "VehicleLocation": { ... } | [{ ... }, ...] } }
 //
-// donde cada VehicleLocation trae codVehicle (id estable, ej. "0129MKN"),
-// coordinates:{latitude,longitude} y direction -- pero SIN ningún campo de
-// rumbo/heading/bearing. Por eso el frontend siempre calcula el rumbo por el vector
-// entre la posición anterior y la nueva (ver public/js/map.js), no es un plan B opcional.
+// donde cada VehicleLocation trae codVehicle (id estable, ej. "0129MKN") y
+// coordinates:{latitude,longitude} -- pero SIN ningún campo de rumbo/heading/bearing. El
+// icono del bus en el frontend no rota por rumbo GPS: se espeja según el sentido de la
+// línea (direction, que sí es un dato fiable de CRTM -- ver README y public/js/busIcon.js).
 export function extractVehicles(rawResponse) {
   const list = asArray(rawResponse?.vehiclesLocation?.VehicleLocation);
 
@@ -16,7 +16,6 @@ export function extractVehicles(rawResponse) {
       id: v.codVehicle,
       lat: Number(v.coordinates?.latitude),
       lon: Number(v.coordinates?.longitude),
-      heading: null,
     }))
     .filter((v) => v.id && Number.isFinite(v.lat) && Number.isFinite(v.lon));
 }

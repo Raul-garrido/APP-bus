@@ -149,12 +149,7 @@ router.get(
             codStop: firstStop.codStop,
             direction: it.direction,
           });
-          const vehicles = extractVehicles(raw).map((v) => ({
-            id: v.id,
-            lat: v.lat,
-            lon: v.lon,
-            heading: v.heading,
-          }));
+          const vehicles = extractVehicles(raw).map((v) => ({ id: v.id, lat: v.lat, lon: v.lon }));
           return { direction: it.direction, vehicles };
         } catch (err) {
           console.error(`GetLineLocation falló para ${codLine} dirección ${it.direction}:`, err.message);

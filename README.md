@@ -124,13 +124,15 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   posición anterior y la nueva (no salto brusco), en vez de una transición CSS pura sobre
   el marcador de Leaflet — así no interfiere con el paneo/zoom del mapa, que también mueve
   los marcadores por CSS transform internamente.
-- **Rumbo del icono**: CRTM no manda rumbo (ver arriba), así que siempre se calcula como el
-  ángulo entre la posición anterior y la nueva del propio vehículo, con un umbral de
-  movimiento mínimo para no hacer temblar el icono cuando el bus está parado. El código deja
-  preparado el uso de un campo de rumbo real si CRTM lo añadiera en el futuro (`vehicleParser.js`
-  siempre da un `heading`, aunque hoy sea siempre `null`), pero no es el caso hoy.
-- **Color del bus**: naranja (`#f97316`) normal y rojo (`#dc2626`) seleccionado, distintos
-  del azul de la ruta/paradas para que se distingan a simple vista sobre el trazado.
+- **Icono del bus**: SVG propio (no una imagen externa, para no depender de ningún banco
+  con derechos) de un autobús lateral en el verde real de los interurbanos de Madrid. No
+  rota por un rumbo GPS calculado -- CRTM no lo manda, y además con una vista lateral
+  rotar por ángulos intermedios se vería mal (se "tumbaría"). En su lugar se espeja
+  (izquierda/derecha) según el **sentido real de la línea** (`direction` 1 o 2, dato fiable
+  de CRTM), que es justo el mismo dato que ya usa el selector de ida/vuelta. Si un vehículo
+  físico pasa a cubrir el otro sentido entre un servicio y el siguiente, el icono se
+  reespeja solo. El seleccionado se distingue con un halo ámbar, no con otro color de
+  carrocería (`public/js/busIcon.js`).
 - **Sentido de circulación (ida/vuelta)**: una línea suele tener dos sentidos (`direction`
   1 y 2 en la API), y algunas además varias variantes de ramal por sentido (paradas "obs[...]"
   distintas para el mismo origen-destino -- la 824 real tiene 3 variantes por sentido). Se

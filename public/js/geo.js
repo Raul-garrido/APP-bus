@@ -1,15 +1,11 @@
-// Cálculos geométricos para: rotar el icono del bus (rumbo), y estimar la próxima parada
-// del bus seleccionado cuando CRTM no permite casarlo de forma fiable con una hora
+// Cálculos geométricos para estimar la próxima parada (o el ETA a una parada tocada en el
+// mapa) del bus seleccionado, cuando CRTM no permite casarlo de forma fiable con una hora
 // programada (ver README: por qué no usamos GetStopsTimes para esto).
 
 const EARTH_RADIUS_M = 6371000;
 
 function toRad(deg) {
   return (deg * Math.PI) / 180;
-}
-
-function toDeg(rad) {
-  return (rad * 180) / Math.PI;
 }
 
 export function distanceMeters(a, b) {
@@ -22,18 +18,6 @@ export function distanceMeters(a, b) {
   const sinDLon = Math.sin(dLon / 2);
   const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-// Rumbo (0-360, 0=norte) del vector a -> b. Se usa como respaldo cuando la API no manda
-// rumbo del vehículo: se calcula entre la posición anterior y la nueva.
-export function bearingDegrees(a, b) {
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const dLon = toRad(b.lon - a.lon);
-
-  const y = Math.sin(dLon) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
 // Proyección plana equirrectangular, válida para distancias cortas (una línea de autobús
