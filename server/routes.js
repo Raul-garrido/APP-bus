@@ -191,7 +191,7 @@ router.get(
   })
 );
 
-const NEARBY_RADIUS_M = 500;
+const NEARBY_RADIUS_M = 1000;
 
 // GET /api/stops/nearby?lat=&lon= -> paradas interurbanas más cercanas a una coordenada
 // (para el mapa de la pantalla inicial). Solo interurbanas: el endpoint de CRTM mezcla
