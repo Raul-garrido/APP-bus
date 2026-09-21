@@ -187,6 +187,35 @@ input[type='search'] {
   min-height: 0;
 }
 
+.direction-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.direction-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.direction-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
 .bus-chip-row {
   display: flex;
   gap: 6px;
@@ -280,8 +309,12 @@ input[type='search'] {
   body {
     color: #e2e8f0;
   }
-  .map-header, .bus-chip-row, .bus-info-panel, .status-line {
+  .map-header, .bus-chip-row, .bus-info-panel, .status-line, .direction-row {
     background: #1e293b;
+  }
+  .direction-btn {
+    background: #0f172a;
+    color: #94a3b8;
   }
   .tab {
     background: #1e293b;

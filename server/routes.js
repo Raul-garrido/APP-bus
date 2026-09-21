@@ -19,6 +19,33 @@ const STATIC_TTL_MS = 60 * 60 * 1000; // 1h
 // Tiempo real -> sin caché, cada cliente dispara su propio poll.
 const NO_CACHE_TTL_MS = 0;
 
+// Muchas líneas interurbanas tienen varias variantes de ramal por sentido (paradas
+// "obs[...]" distintas para el mismo origen-destino, ej. la 824 trae 3 itinerarios para
+// direction=1 y 3 para direction=2). GetLineLocation.php da la misma respuesta para
+// cualquier itinerario de un mismo sentido -- así que para dibujar el mapa y pedir la
+// posición de los buses basta con UN itinerario representativo por sentido (el primero
+// que llegue), en vez de repetir trabajo por cada variante de ramal.
+function itinerariesByDirection(info) {
+  const seen = new Map();
+  for (const it of asArray(info.itinerary?.Itinerary)) {
+    const direction = String(it.direction);
+    if (seen.has(direction)) continue;
+    seen.set(direction, {
+      codItinerary: it.codItinerary,
+      name: it.name,
+      direction: it.direction,
+      stops: asArray(it.stops?.StopInformation).map((stop) => ({
+        codStop: stop.codStop,
+        shortCodStop: stop.shortCodStop,
+        name: stop.name,
+        lat: stop.coordinates?.latitude,
+        lon: stop.coordinates?.longitude,
+      })),
+    });
+  }
+  return [...seen.values()];
+}
+
 function handleErrors(fn) {
   return async (req, res) => {
     try {
@@ -64,19 +91,6 @@ router.get(
     const info = data?.lines?.LineInformation;
     if (!info) return res.status(404).json({ error: true, message: 'Línea no encontrada' });
 
-    const itineraries = asArray(info.itinerary?.Itinerary).map((it) => ({
-      codItinerary: it.codItinerary,
-      name: it.name,
-      direction: it.direction,
-      stops: asArray(it.stops?.StopInformation).map((stop) => ({
-        codStop: stop.codStop,
-        shortCodStop: stop.shortCodStop,
-        name: stop.name,
-        lat: stop.coordinates?.latitude,
-        lon: stop.coordinates?.longitude,
-      })),
-    }));
-
     res.set('Cache-Control', 'public, max-age=300');
     res.json({
       codLine: info.codLine,
@@ -84,7 +98,7 @@ router.get(
       description: info.description,
       colorLine: info.colorLine,
       textColorLine: info.text_colorLine,
-      itineraries,
+      itineraries: itinerariesByDirection(info),
     });
   })
 );
@@ -103,11 +117,11 @@ router.get(
     const info = infoData?.lines?.LineInformation;
     if (!info) return res.status(404).json({ error: true, message: 'Línea no encontrada' });
 
-    const itineraries = asArray(info.itinerary?.Itinerary);
+    const itineraries = itinerariesByDirection(info);
 
     const perDirection = await Promise.all(
       itineraries.map(async (it) => {
-        const firstStop = asArray(it.stops?.StopInformation)[0];
+        const firstStop = it.stops[0];
         if (!firstStop) return { direction: it.direction, vehicles: [] };
 
         try {

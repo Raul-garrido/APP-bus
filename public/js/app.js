@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { initMap, drawItineraries, BusLayer } from './map.js';
 import { findNextStop } from './geo.js';
 
-const POLL_MS = 17000; // dentro del rango 15-20s pedido
+const POLL_MS = 10000;
 const DEFAULT_SPEED_MPS = 8.3; // ~30 km/h, solo como respaldo antes de tener una muestra real
 
 const $ = (sel) => document.querySelector(sel);
@@ -12,6 +12,27 @@ function debounce(fn, ms) {
   return (...args) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// setInterval dispara cada POLL_MS pase lo que pase, aunque la petición anterior siga en
+// vuelo -- con un intervalo corto y una API externa de latencia variable eso puede
+// solapar peticiones y desordenar qué respuesta "gana". Esto en cambio programa la
+// siguiente vuelta solo cuando termina la actual (éxito o error), así nunca hay dos en
+// vuelo a la vez. Devuelve una función para cancelar el bucle.
+function startPollLoop(fn, ms) {
+  let cancelled = false;
+  let timeoutId = null;
+
+  const tick = async () => {
+    await fn();
+    if (!cancelled) timeoutId = setTimeout(tick, ms);
+  };
+  tick();
+
+  return () => {
+    cancelled = true;
+    if (timeoutId) clearTimeout(timeoutId);
   };
 }
 
@@ -116,7 +137,9 @@ const mapState = {
   map: null,
   busLayer: null,
   itinerariesByDirection: new Map(),
-  pollHandle: null,
+  selectedDirection: null,
+  currentRouteLayer: null,
+  pollCancel: null,
   codLine: null,
 };
 
@@ -132,8 +155,10 @@ async function openLine(line) {
   $('#map-line-code').textContent = line.shortDescription;
   $('#map-line-desc').textContent = line.description;
   $('#map-status').textContent = 'Cargando trazado…';
+  $('#direction-row').innerHTML = '';
+  $('#bus-chip-row').innerHTML = '';
 
-  const map = ensureMap();
+  ensureMap();
   mapState.codLine = line.codLine;
   mapState.busLayer.clear();
   if (mapState.currentRouteLayer) mapState.currentRouteLayer.remove();
@@ -141,8 +166,9 @@ async function openLine(line) {
   try {
     const info = await api.getLineInfo(line.codLine);
     mapState.itinerariesByDirection = new Map(info.itineraries.map((it) => [String(it.direction), it]));
-    const { group } = drawItineraries(map, info.itineraries);
-    mapState.currentRouteLayer = group;
+    mapState.selectedDirection = info.itineraries[0] ? String(info.itineraries[0].direction) : null;
+    renderDirectionButtons();
+    drawSelectedRoute();
     $('#map-status').textContent = '';
   } catch (err) {
     $('#map-status').textContent = `Error cargando la línea: ${err.message}`;
@@ -152,29 +178,65 @@ async function openLine(line) {
   startLocationPolling();
 }
 
+// Muchas líneas interurbanas solo tienen sentido de ida (un extremo del recorrido, sin
+// vuelta por el mismo número de línea) -- en ese caso no tiene sentido mostrar un
+// selector con una sola opción.
+function renderDirectionButtons() {
+  const row = $('#direction-row');
+  row.innerHTML = '';
+  const itineraries = [...mapState.itinerariesByDirection.values()];
+  if (itineraries.length < 2) return;
+
+  for (const it of itineraries) {
+    const direction = String(it.direction);
+    const btn = document.createElement('button');
+    btn.className = 'direction-btn' + (direction === mapState.selectedDirection ? ' active' : '');
+    btn.textContent = it.name || `Sentido ${direction}`;
+    btn.addEventListener('click', () => selectDirection(direction));
+    row.appendChild(btn);
+  }
+}
+
+function selectDirection(direction) {
+  if (direction === mapState.selectedDirection) return;
+  mapState.selectedDirection = direction;
+  renderDirectionButtons();
+  drawSelectedRoute();
+  mapState.busLayer.clear();
+  $('#bus-chip-row').innerHTML = '';
+  refreshSelectedBusInfo();
+}
+
+function drawSelectedRoute() {
+  if (mapState.currentRouteLayer) mapState.currentRouteLayer.remove();
+  const itinerary = mapState.itinerariesByDirection.get(mapState.selectedDirection);
+  if (!itinerary) return;
+  const { group } = drawItineraries(mapState.map, [itinerary]);
+  mapState.currentRouteLayer = group;
+}
+
 function startLocationPolling() {
   stopLocationPolling();
-  const tick = async () => {
+  mapState.pollCancel = startPollLoop(async () => {
     try {
-      const { vehicles, updatedAt } = await api.getLineLocation(mapState.codLine);
+      const { vehicles: allVehicles, updatedAt } = await api.getLineLocation(mapState.codLine);
+      const vehicles = allVehicles.filter((v) => String(v.direction) === mapState.selectedDirection);
       mapState.busLayer.update(vehicles);
       renderBusChips(vehicles);
       refreshSelectedBusInfo();
       const time = new Date(updatedAt).toLocaleTimeString('es-ES');
       $('#map-status').textContent = vehicles.length
-        ? `${vehicles.length} bus(es) en circulación · actualizado ${time}`
-        : `Sin vehículos circulando ahora mismo · actualizado ${time}`;
+        ? `${vehicles.length} bus(es) en este sentido · actualizado ${time}`
+        : `Sin vehículos en este sentido ahora mismo · actualizado ${time}`;
     } catch (err) {
       $('#map-status').textContent = `No se pudo actualizar la posición: ${err.message}`;
     }
-  };
-  tick();
-  mapState.pollHandle = setInterval(tick, POLL_MS);
+  }, POLL_MS);
 }
 
 function stopLocationPolling() {
-  if (mapState.pollHandle) clearInterval(mapState.pollHandle);
-  mapState.pollHandle = null;
+  if (mapState.pollCancel) mapState.pollCancel();
+  mapState.pollCancel = null;
 }
 
 function renderBusChips(vehicles) {
@@ -241,7 +303,7 @@ $('#map-refresh').addEventListener('click', () => startLocationPolling());
 
 /* ---------- Pantalla de parada (búsqueda por parada) ---------- */
 
-const stopState = { codStop: null, pollHandle: null };
+const stopState = { codStop: null, pollCancel: null };
 
 async function openStop(stop) {
   showScreen('#screen-stop');
@@ -252,7 +314,7 @@ async function openStop(stop) {
 
 function startStopPolling() {
   stopStopPolling();
-  const tick = async () => {
+  stopState.pollCancel = startPollLoop(async () => {
     try {
       const { arrivals } = await api.getStopTimes(stopState.codStop);
       renderArrivals(arrivals);
@@ -260,14 +322,12 @@ function startStopPolling() {
     } catch (err) {
       $('#stop-status').textContent = `No se pudo actualizar: ${err.message}`;
     }
-  };
-  tick();
-  stopState.pollHandle = setInterval(tick, POLL_MS);
+  }, POLL_MS);
 }
 
 function stopStopPolling() {
-  if (stopState.pollHandle) clearInterval(stopState.pollHandle);
-  stopState.pollHandle = null;
+  if (stopState.pollCancel) stopState.pollCancel();
+  stopState.pollCancel = null;
 }
 
 function renderArrivals(arrivals) {

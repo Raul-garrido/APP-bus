@@ -122,3 +122,17 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   movimiento mínimo para no hacer temblar el icono cuando el bus está parado. El código deja
   preparado el uso de un campo de rumbo real si CRTM lo añadiera en el futuro (`vehicleParser.js`
   siempre da un `heading`, aunque hoy sea siempre `null`), pero no es el caso hoy.
+- **Color del bus**: naranja (`#f97316`) normal y rojo (`#dc2626`) seleccionado, distintos
+  del azul de la ruta/paradas para que se distingan a simple vista sobre el trazado.
+- **Sentido de circulación (ida/vuelta)**: una línea suele tener dos sentidos (`direction`
+  1 y 2 en la API), y algunas además varias variantes de ramal por sentido (paradas "obs[...]"
+  distintas para el mismo origen-destino -- la 824 real tiene 3 variantes por sentido). Se
+  deduplica a un itinerario representativo por sentido (`itinerariesByDirection` en
+  `server/routes.js`) y se muestra un selector cuando hay más de uno; solo se dibuja el
+  trazado y se filtran los buses del sentido activo. De paso esto evita pedir la posición
+  una vez por cada variante de ramal -- antes se pedía 6 veces para una línea con 3
+  variantes por sentido, ahora 2 (una por sentido).
+- **Frecuencia de actualización**: 10s. El bucle de polling (`startPollLoop` en `app.js`)
+  programa la siguiente vuelta solo cuando termina la actual (éxito o error) en vez de usar
+  `setInterval` a ciegas, para que un intervalo corto no acabe solapando peticiones si CRTM
+  tarda más de lo normal en responder.
