@@ -1,0 +1,17 @@
+{
+  "name": "app-bus",
+  "version": "1.0.0",
+  "description": "PWA con la posición en tiempo real de los autobuses interurbanos de la Comunidad de Madrid (CRTM)",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "leaflet": "^1.9.4"
+  }
+}

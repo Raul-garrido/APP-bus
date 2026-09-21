@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bus CRTM en vivo</title>
+  <meta name="description" content="Posición en tiempo real de los autobuses interurbanos de la Comunidad de Madrid" />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Pantalla inicial: buscador de línea o de parada -->
+  <section id="screen-home" class="screen">
+    <header class="home-header">
+      <h1>🚌 Bus CRTM en vivo</h1>
+    </header>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="lines">Por línea</button>
+      <button class="tab" data-tab="stops">Por parada</button>
+    </div>
+
+    <div id="tab-lines" class="tab-panel active">
+      <input id="line-search" type="search" inputmode="search" placeholder="Buscar línea (ej: 501, Alcorcón...)" autocomplete="off" />
+      <ul id="line-results" class="result-list"></ul>
+    </div>
+
+    <div id="tab-stops" class="tab-panel">
+      <input id="stop-search" type="search" inputmode="search" placeholder="Buscar parada (nombre, código, municipio...)" autocomplete="off" />
+      <ul id="stop-results" class="result-list"></ul>
+    </div>
+  </section>
+
+  <!-- Pantalla de mapa: trazado de la línea + buses en vivo -->
+  <section id="screen-map" class="screen hidden">
+    <header class="map-header">
+      <button class="back-btn" id="map-back">←</button>
+      <div class="line-title">
+        <span id="map-line-code" class="line-badge"></span>
+        <span id="map-line-desc"></span>
+      </div>
+      <button class="refresh-btn" id="map-refresh" title="Actualizar ahora">⟳</button>
+    </header>
+
+    <div id="leaflet-map"></div>
+
+    <div id="bus-chip-row" class="bus-chip-row"></div>
+
+    <div id="bus-info-panel" class="bus-info-panel hidden">
+      <div id="bus-info-content"></div>
+    </div>
+
+    <div id="map-status" class="status-line"></div>
+  </section>
+
+  <!-- Pantalla de parada: próximos pasos en tiempo real -->
+  <section id="screen-stop" class="screen hidden">
+    <header class="map-header">
+      <button class="back-btn" id="stop-back">←</button>
+      <div class="line-title">
+        <span id="stop-name"></span>
+      </div>
+      <button class="refresh-btn" id="stop-refresh" title="Actualizar ahora">⟳</button>
+    </header>
+
+    <ul id="stop-arrivals" class="arrivals-list"></ul>
+    <div id="stop-status" class="status-line"></div>
+  </section>
+
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

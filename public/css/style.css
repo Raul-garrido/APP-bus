@@ -1,0 +1,299 @@
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1e3a8a;
+  --bg: #f8fafc;
+  --border: #e2e8f0;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: #0f172a;
+}
+
+.screen {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* --- Pantalla inicial --- */
+.home-header {
+  padding: 20px 16px 8px;
+}
+
+.home-header h1 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: #e2e8f0;
+  border-radius: 10px 10px 0 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.tab.active {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+.tab-panel {
+  display: none;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.tab-panel.active {
+  display: flex;
+}
+
+input[type='search'] {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 1rem;
+}
+
+.result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.result-list li {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.result-list li:active {
+  background: #eff6ff;
+}
+
+.result-badge {
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: white;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.result-desc {
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.result-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.empty-hint {
+  color: #94a3b8;
+  text-align: center;
+  padding: 24px 8px;
+  font-size: 0.9rem;
+}
+
+/* --- Cabecera compartida mapa/parada --- */
+.map-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.back-btn, .refresh-btn {
+  border: none;
+  background: #f1f5f9;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.line-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.line-badge {
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+#map-line-desc, #stop-name {
+  font-size: 0.88rem;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Mapa --- */
+#leaflet-map {
+  flex: 1;
+  min-height: 0;
+}
+
+.bus-chip-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  overflow-x: auto;
+  background: white;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bus-chip {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--primary);
+  background: white;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.bus-chip.selected {
+  background: var(--primary);
+  color: white;
+}
+
+.bus-info-panel {
+  background: white;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.status-line {
+  padding: 4px 14px 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  background: white;
+  flex-shrink: 0;
+}
+
+/* --- Icono de autobús (Leaflet divIcon) --- */
+.bus-marker {
+  /* Leaflet pone fondo blanco y borde por defecto a .leaflet-div-icon; se anula aquí */
+  background: transparent;
+  border: none;
+  transition: transform 0s;
+}
+
+.bus-marker__rotate {
+  width: 24px;
+  height: 40px;
+  transition: transform 0.3s ease-out;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.bus-marker--selected .bus-marker__rotate {
+  filter: drop-shadow(0 0 6px #f59e0b) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* --- Lista de llegadas a parada --- */
+.arrivals-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.arrivals-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.arrival-eta {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-size: 0.95rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0f172a;
+    --border: #1e293b;
+  }
+  body {
+    color: #e2e8f0;
+  }
+  .map-header, .bus-chip-row, .bus-info-panel, .status-line {
+    background: #1e293b;
+  }
+  .tab {
+    background: #1e293b;
+    color: #94a3b8;
+  }
+  .bus-chip {
+    background: #1e293b;
+  }
+  #map-line-desc, #stop-name {
+    color: #cbd5e1;
+  }
+  .result-desc {
+    color: #cbd5e1;
+  }
+}
