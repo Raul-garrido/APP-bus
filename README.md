@@ -113,6 +113,13 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   de su itinerario, y se estima el tiempo por distancia/velocidad — la velocidad se calcula
   con las dos últimas posiciones conocidas del propio bus (o un valor de respaldo de 30
   km/h hasta tener una segunda muestra). Se marca explícitamente en la UI como estimado.
+- **ETA de una parada tocada en el mapa** (`public/js/geo.js`, `distanceToStopAhead`): misma
+  idea que la próxima parada, pero al revés -- para cada bus activo en el sentido mostrado,
+  se calcula la distancia restante hasta la parada tocada (no la más cercana al bus, la que
+  elige el usuario) recorriendo la secuencia de paradas hacia delante desde donde está el
+  bus ahora. Si el bus ya dejó atrás esa parada en su pasada actual, no se le da ETA para
+  ella (`null`). Solo se muestra un panel a la vez: seleccionar un bus quita la parada
+  seleccionada y viceversa.
 - **Animación del icono**: interpolación manual con `requestAnimationFrame` entre la
   posición anterior y la nueva (no salto brusco), en vez de una transición CSS pura sobre
   el marcador de Leaflet — así no interfiere con el paneo/zoom del mapa, que también mueve

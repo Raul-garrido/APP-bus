@@ -61,11 +61,10 @@ function closestPointOnSegment(p, a, b) {
 }
 
 // Dado un bus y las paradas ordenadas de SU itinerario (ya vienen en el sentido de
-// circulación), busca en qué tramo entre dos paradas consecutivas está el bus y devuelve
-// la parada siguiente (la más adelantada del tramo) junto con la distancia restante hasta
-// ella siguiendo la propia línea recta parada-a-parada del tramo (aproximación: no hay
-// trazado real de calle, ver README).
-export function findNextStop(busPos, stops) {
+// circulación), busca en qué tramo entre dos paradas consecutivas está el bus ahora mismo.
+// Es la base tanto de "próxima parada" como de "cuándo llega a la parada X" -- ambas
+// necesitan saber primero dónde está el bus dentro de la secuencia de paradas.
+function locateOnRoute(busPos, stops) {
   if (!stops || stops.length < 2) return null;
 
   let best = null;
@@ -74,11 +73,33 @@ export function findNextStop(busPos, stops) {
     const b = stops[i + 1];
     if (!Number.isFinite(a.lat) || !Number.isFinite(b.lat)) continue;
 
-    const { t, dist } = closestPointOnSegment(busPos, a, b);
-    if (!best || dist < best.dist) {
-      const distanceToNextStopMeters = distanceMeters(busPos, b);
-      best = { dist, nextStop: b, distanceToNextStopMeters, segmentT: t };
-    }
+    const { dist } = closestPointOnSegment(busPos, a, b);
+    if (!best || dist < best.dist) best = { segmentIndex: i, dist };
   }
   return best;
+}
+
+// Próxima parada del bus (aproximación en línea recta parada-a-parada del tramo en el que
+// está, no el trazado real de la calle -- ver README).
+export function findNextStop(busPos, stops) {
+  const loc = locateOnRoute(busPos, stops);
+  if (!loc) return null;
+
+  const nextStop = stops[loc.segmentIndex + 1];
+  return { nextStop, distanceToNextStopMeters: distanceMeters(busPos, nextStop) };
+}
+
+// Distancia (metros) desde la posición actual del bus hasta la parada de índice
+// targetIndex, recorriendo la secuencia de paradas hacia delante. Devuelve null si esa
+// parada ya quedó atrás en esta pasada (el bus ya la dejó atrás, o es la parada en la que
+// está parado ahora mismo) -- en ese caso no tiene sentido dar un ETA para ella.
+export function distanceToStopAhead(busPos, stops, targetIndex) {
+  const loc = locateOnRoute(busPos, stops);
+  if (!loc || targetIndex <= loc.segmentIndex) return null;
+
+  let total = distanceMeters(busPos, stops[loc.segmentIndex + 1]);
+  for (let i = loc.segmentIndex + 1; i < targetIndex; i++) {
+    total += distanceMeters(stops[i], stops[i + 1]);
+  }
+  return total;
 }

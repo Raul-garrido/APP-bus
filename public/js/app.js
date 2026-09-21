@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { initMap, drawItineraries, BusLayer } from './map.js';
-import { findNextStop } from './geo.js';
+import { findNextStop, distanceToStopAhead } from './geo.js';
 
 const POLL_MS = 10000;
 const DEFAULT_SPEED_MPS = 8.3; // ~30 km/h, solo como respaldo antes de tener una muestra real
@@ -138,6 +138,7 @@ const mapState = {
   busLayer: null,
   itinerariesByDirection: new Map(),
   selectedDirection: null,
+  selectedStop: null,
   currentRouteLayer: null,
   pollCancel: null,
   codLine: null,
@@ -160,6 +161,7 @@ async function openLine(line) {
 
   ensureMap();
   mapState.codLine = line.codLine;
+  mapState.selectedStop = null;
   mapState.busLayer.clear();
   if (mapState.currentRouteLayer) mapState.currentRouteLayer.remove();
 
@@ -200,19 +202,49 @@ function renderDirectionButtons() {
 function selectDirection(direction) {
   if (direction === mapState.selectedDirection) return;
   mapState.selectedDirection = direction;
+  mapState.selectedStop = null;
   renderDirectionButtons();
   drawSelectedRoute();
   mapState.busLayer.clear();
   $('#bus-chip-row').innerHTML = '';
-  refreshSelectedBusInfo();
+  refreshInfoPanel();
 }
 
 function drawSelectedRoute() {
   if (mapState.currentRouteLayer) mapState.currentRouteLayer.remove();
   const itinerary = mapState.itinerariesByDirection.get(mapState.selectedDirection);
   if (!itinerary) return;
-  const { group } = drawItineraries(mapState.map, [itinerary]);
+  const { group } = drawItineraries(mapState.map, [itinerary], { onStopClick });
   mapState.currentRouteLayer = group;
+}
+
+// Al tocar una parada en el mapa: para cada bus activo en el sentido mostrado, calcula
+// cuánto le queda para llegar a ESA parada en concreto (no la más cercana al bus, la que
+// se ha tocado), recorriendo la secuencia de paradas hacia delante desde donde está cada
+// bus ahora mismo. Sustituye cualquier bus seleccionado -- solo se muestra un panel a la
+// vez, o el de un bus o el de una parada.
+function onStopClick(stop) {
+  mapState.busLayer.clearSelection();
+  mapState.selectedStop = stop;
+  refreshInfoPanel();
+}
+
+function computeStopArrivals(stop) {
+  const itinerary = mapState.itinerariesByDirection.get(mapState.selectedDirection);
+  if (!itinerary) return [];
+
+  const stopIndex = itinerary.stops.findIndex((s) => s.codStop === stop.codStop);
+  if (stopIndex === -1) return [];
+
+  const arrivals = [];
+  for (const v of mapState.busLayer.getAllStates()) {
+    const distance = distanceToStopAhead({ lat: v.lat, lon: v.lon }, itinerary.stops, stopIndex);
+    if (distance === null) continue; // este bus ya dejó atrás esta parada en su pasada actual
+
+    const speed = v.speedMps && v.speedMps > 0.3 ? v.speedMps : DEFAULT_SPEED_MPS;
+    arrivals.push(Math.max(0, Math.round(distance / speed / 60)));
+  }
+  return arrivals.sort((a, b) => a - b);
 }
 
 function startLocationPolling() {
@@ -223,7 +255,7 @@ function startLocationPolling() {
       const vehicles = allVehicles.filter((v) => String(v.direction) === mapState.selectedDirection);
       mapState.busLayer.update(vehicles);
       renderBusChips(vehicles);
-      refreshSelectedBusInfo();
+      refreshInfoPanel();
       const time = new Date(updatedAt).toLocaleTimeString('es-ES');
       $('#map-status').textContent = vehicles.length
         ? `${vehicles.length} bus(es) en este sentido · actualizado ${time}`
@@ -256,19 +288,21 @@ function onBusSelected(id) {
   document.querySelectorAll('.bus-chip').forEach((chip) => {
     chip.classList.toggle('selected', chip.dataset.vehicleId === id);
   });
-  refreshSelectedBusInfo();
+  if (id) mapState.selectedStop = null; // un bus y una parada no se muestran a la vez
+  refreshInfoPanel();
 }
 
-function refreshSelectedBusInfo() {
+// Un único panel abajo del mapa para dos cosas mutuamente excluyentes: el bus
+// seleccionado (próxima parada) o la parada seleccionada (llegada de cada bus activo).
+function refreshInfoPanel() {
+  if (mapState.busLayer.selectedId) return renderBusInfo(mapState.busLayer.selectedId);
+  if (mapState.selectedStop) return renderStopInfo(mapState.selectedStop);
+  $('#bus-info-panel').classList.add('hidden');
+}
+
+function renderBusInfo(id) {
   const panel = $('#bus-info-panel');
   const content = $('#bus-info-content');
-  const id = mapState.busLayer.selectedId;
-
-  if (!id) {
-    panel.classList.add('hidden');
-    return;
-  }
-
   const state = mapState.busLayer.getState(id);
   if (!state) {
     panel.classList.add('hidden');
@@ -285,12 +319,33 @@ function refreshSelectedBusInfo() {
   }
 
   const speed = state.speedMps && state.speedMps > 0.3 ? state.speedMps : DEFAULT_SPEED_MPS;
-  const etaSeconds = next.distanceToNextStopMeters / speed;
-  const etaMin = Math.max(0, Math.round(etaSeconds / 60));
+  const etaMin = Math.max(0, Math.round(next.distanceToNextStopMeters / speed / 60));
 
   content.innerHTML = `
     <strong>Próxima parada:</strong> ${next.nextStop.name || next.nextStop.codStop}<br/>
     <span class="result-sub">~${etaMin} min (estimado por posición y velocidad, no es una hora programada de CRTM)</span>
+  `;
+}
+
+function renderStopInfo(stop) {
+  const panel = $('#bus-info-panel');
+  const content = $('#bus-info-content');
+  panel.classList.remove('hidden');
+
+  const etas = computeStopArrivals(stop);
+  if (!etas.length) {
+    content.innerHTML = `
+      <strong>${stop.name || stop.codStop}</strong>
+      <div class="result-sub">Ningún bus de este sentido va hacia esta parada ahora mismo</div>
+    `;
+    return;
+  }
+
+  const rows = etas.map((min, i) => `<div>${i + 1}ª llegada: ~${min} min</div>`).join('');
+  content.innerHTML = `
+    <strong>${stop.name || stop.codStop}</strong>
+    ${rows}
+    <span class="result-sub">Estimado por posición y velocidad de cada bus, no es una hora programada de CRTM</span>
   `;
 }
 

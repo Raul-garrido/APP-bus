@@ -22,7 +22,7 @@ export function initMap(containerId) {
 // circulación de cada itinerario. Si el backend pudo descargar y parsear el KML real de
 // CRTM (routeSegments), se usa ese trazado fiel a la carretera; si no (falló la descarga,
 // formato inesperado...), se cae de vuelta a unir las paradas en línea recta.
-export function drawItineraries(map, itineraries) {
+export function drawItineraries(map, itineraries, { onStopClick } = {}) {
   const group = L.layerGroup().addTo(map);
   const stopMarkers = new Map();
 
@@ -48,6 +48,7 @@ export function drawItineraries(map, itineraries) {
       })
         .addTo(group)
         .bindTooltip(stop.name || '', { direction: 'top' });
+      if (onStopClick) marker.on('click', () => onStopClick(stop, it));
       stopMarkers.set(stop.codStop, marker);
     }
   }
@@ -172,6 +173,26 @@ export class BusLayer {
     const s = this.vehicles.get(id);
     if (!s) return null;
     return { lat: s.lat, lon: s.lon, heading: s.heading, speedMps: s.speedMps, direction: s.direction };
+  }
+
+  getAllStates() {
+    return [...this.vehicles.entries()].map(([id, s]) => ({
+      id,
+      lat: s.lat,
+      lon: s.lon,
+      heading: s.heading,
+      speedMps: s.speedMps,
+      direction: s.direction,
+    }));
+  }
+
+  clearSelection() {
+    if (!this.selectedId) return;
+    const prevId = this.selectedId;
+    this.selectedId = null;
+    const state = this.vehicles.get(prevId);
+    if (state) state.marker.setIcon(createBusIcon(L, { heading: state.heading, highlighted: false }));
+    if (this.onSelect) this.onSelect(null, null);
   }
 
   clear() {
