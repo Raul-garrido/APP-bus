@@ -12,21 +12,42 @@ npm start        # http://localhost:3000
 
 Node 18+ (usa `fetch` nativo, sin dependencias de red adicionales en el backend aparte de
 Express). No hace falta build ni bundler: el frontend es JS vanilla con módulos ES nativos
-del navegador, y Leaflet se sirve desde `node_modules/leaflet/dist` vía `/vendor/leaflet`
-(así no depende de un CDN externo).
+del navegador, y Leaflet está vendorizado como archivos estáticos en `public/vendor/leaflet`
+(copiados de `node_modules/leaflet/dist`, no se cargan desde `node_modules` en tiempo de
+ejecución) — así sirve igual en local y en Vercel, sin depender de un CDN externo.
+
+## Desplegar en Vercel
+
+El proyecto ya está preparado para desplegarse tal cual en Vercel, sin configuración
+adicional más allá de conectar el repo:
+
+- `api/[...path].js` expone la misma app de Express (`server/app.js`) como función
+  serverless — Vercel enruta ahí cualquier petición bajo `/api/*`.
+- `public/` se sirve automáticamente como estático (Vercel lo detecta por convención).
+- `vercel.json` solo fija `maxDuration: 10` en las funciones, coherente con los timeouts
+  de las llamadas a CRTM (8s) en `crtmClient.js`.
+
+La caché en memoria (`server/cache.js`) pierde eficacia en serverless (cada invocación
+puede ser una instancia distinta, sin memoria compartida) — no es un problema funcional,
+solo hace más llamadas de las estrictamente necesarias a `GetLines.php`/`GetLinesInformation.php`.
 
 ## Estructura
 
 ```
+api/
+  [...path].js       Adaptador para Vercel: expone server/app.js como función serverless
 server/
-  index.js          Express app: sirve /api, /vendor/leaflet y los estáticos de public/
-  routes.js          Endpoints propios (ver abajo)
-  crtmClient.js       Llamadas a la API de CRTM (crtm.es/widgets/api)
-  vehicleParser.js    Parseo defensivo de GetLineLocation.php (ver "Sobre GetLineLocation.php")
-  cache.js            Caché en memoria con TTL, sin dependencias
+  app.js              Configura la app de Express (rutas + estáticos) -- la usan tanto
+                      server/index.js (local) como api/[...path].js (Vercel)
+  index.js            Arranque local: app.listen(PORT), usado por `npm start`
+  routes.js           Endpoints propios (ver abajo)
+  crtmClient.js        Llamadas a la API de CRTM (crtm.es/widgets/api)
+  vehicleParser.js     Parseo defensivo de GetLineLocation.php (ver "Sobre GetLineLocation.php")
+  cache.js              Caché en memoria con TTL, sin dependencias
 public/
-  index.html, css/, js/    Frontend: buscador, mapa Leaflet, iconos de bus, polling
-  manifest.json, sw.js     PWA: instalable, cachea el app shell (nunca /api/*)
+  index.html, css/, js/     Frontend: buscador, mapa Leaflet, iconos de bus, polling
+  vendor/leaflet/            Leaflet vendorizado (JS+CSS+imágenes), sin CDN externo
+  manifest.json, sw.js       PWA: instalable, cachea el app shell (nunca /api/*)
 ```
 
 ## Endpoints propios (proxy a CRTM)

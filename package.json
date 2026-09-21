@@ -11,7 +11,9 @@
     "dev": "node --watch server/index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
     "leaflet": "^1.9.4"
   }
 }
