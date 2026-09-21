@@ -175,3 +175,14 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   concreto -- el mismo problema, ya documentado arriba, de que CRTM no permite casar de
   forma fiable un vehículo con una hora programada cuando hay varios en la misma
   línea+sentido. Se deja elegir de la lista de chips en ese caso, en vez de seleccionar mal.
+- **La lista de llegadas de una parada usa `GetStopsTimes.php` (predicción propia de
+  CRTM), no la posición GPS en vivo** (`GetLineLocation.php`, un sistema totalmente
+  aparte). Son dos sistemas de CRTM independientes, y pueden no estar sincronizados entre
+  sí -- reportado en vivo: una llegada anunciada en 5 min con el bus más cercano visto en
+  el mapa a varios km, lo que sugiere que el GPS de ese vehículo llevaba un rato sin
+  actualizarse por el lado de CRTM (ver limitación de `GetLineLocation.php` arriba). Por
+  eso hay un aviso fijo en la pantalla de parada aclarando que son horas estimadas por
+  CRTM, no la posición en vivo -- para no dar a entender que ambas cosas están casadas.
+  `formatEta` en `app.js` además muestra horas y minutos a partir de 1h en vez de un
+  número de minutos suelto sin formatear (ej. "504 min" en vez de "8 h 24 min" parecía un
+  error en vez de "el próximo servicio es dentro de muchas horas").

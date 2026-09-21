@@ -463,6 +463,19 @@ function applyStopFilter() {
   renderArrivals(filtered);
 }
 
+// CRTM puede dar una llegada dentro de muchas horas (p.ej. el primer servicio de la
+// mañana en una línea que ya no pasa esta noche) -- en minutos sueltos, un número grande
+// parece un error en vez de "queda mucho". A partir de 1h se muestra en horas y minutos.
+function formatEta(seconds) {
+  if (seconds === null) return '—';
+  if (seconds < 60) return '<1 min';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins ? `${hours} h ${mins} min` : `${hours} h`;
+}
+
 function renderArrivals(arrivals) {
   const list = $('#stop-arrivals');
   if (!arrivals.length) {
@@ -472,12 +485,7 @@ function renderArrivals(arrivals) {
   list.innerHTML = '';
   for (const a of arrivals) {
     const li = document.createElement('li');
-    const etaText =
-      a.secondsToArrival === null
-        ? '—'
-        : a.secondsToArrival < 60
-          ? 'En parada'
-          : `${Math.round(a.secondsToArrival / 60)} min`;
+    const etaText = formatEta(a.secondsToArrival);
     li.innerHTML = `
       <span class="result-badge">${a.line}</span>
       <span class="result-desc">${a.destination}</span>

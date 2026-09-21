@@ -314,6 +314,12 @@ input[type='search'] {
 }
 
 /* --- Lista de llegadas a parada --- */
+.arrivals-disclaimer {
+  margin: 8px 12px 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
 .stop-filter-input {
   margin: 10px 10px 0;
   width: calc(100% - 20px);
