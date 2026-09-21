@@ -13,5 +13,6 @@ export const api = {
   getLineInfo: (codLine) => getJson(`/api/lines/${encodeURIComponent(codLine)}`),
   getLineLocation: (codLine) => getJson(`/api/lines/${encodeURIComponent(codLine)}/location`),
   searchStops: (q) => getJson(`/api/stops?q=${encodeURIComponent(q)}`),
+  getNearbyStops: (lat, lon) => getJson(`/api/stops/nearby?lat=${lat}&lon=${lon}`),
   getStopTimes: (codStop) => getJson(`/api/stops/${encodeURIComponent(codStop)}/times`),
 };

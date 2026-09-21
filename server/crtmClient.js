@@ -45,6 +45,20 @@ export function getStops(customSearch) {
   return crtmRequest('GetStops.php', { customSearch });
 }
 
+// method=1 replica el uso ya probado en producción por otra app (busya) que consume esta
+// misma API -- el significado real de "method" no está documentado. mode vacío devuelve
+// todas las redes mezcladas (Metro/Cercanías/EMT/Interurbano), con una fila repetida por
+// cada línea que pasa por cada parada; se filtra y deduplica en routes.js.
+export function getNearestStops({ latitude, longitude, precisionMeters }) {
+  return crtmRequest('GetNearestStopsByLocation.php', {
+    latitude,
+    longitude,
+    mode: '',
+    method: 1,
+    precision: precisionMeters,
+  });
+}
+
 export function getStopsTimes(codStop) {
   return crtmRequest('GetStopsTimes.php', {
     codStop,

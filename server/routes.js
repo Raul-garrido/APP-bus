@@ -5,6 +5,7 @@ import {
   getStops,
   getStopsTimes,
   getLineLocationRaw,
+  getNearestStops,
   asArray,
   INTERURBAN_MODE,
   CrtmError,
@@ -186,6 +187,50 @@ router.get(
     }));
 
     res.set('Cache-Control', 'public, max-age=120');
+    res.json({ stops });
+  })
+);
+
+const NEARBY_RADIUS_M = 400;
+
+// GET /api/stops/nearby?lat=&lon= -> paradas interurbanas más cercanas a una coordenada
+// (para el mapa de la pantalla inicial). Solo interurbanas: el endpoint de CRTM mezcla
+// Metro/Cercanías/EMT/Interurbano sin filtrar por red, pero el resto de esta app (y su
+// alcance original) es solo interurbanos -- se filtra por el prefijo del propio codStop
+// ("8_"), y se deduplica porque llega una fila repetida por cada línea de cada parada.
+router.get(
+  '/stops/nearby',
+  handleErrors(async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lon = Number(req.query.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return res.status(400).json({ error: true, message: 'Parámetros lat/lon inválidos' });
+    }
+
+    const data = await getNearestStops({ latitude: lat, longitude: lon, precisionMeters: NEARBY_RADIUS_M });
+    const rawStops = asArray(data?.stops?.Stop).filter((s) => s.codStop?.startsWith(`${INTERURBAN_MODE}_`));
+
+    const byCodStop = new Map();
+    for (const stop of rawStops) {
+      const lines = asArray(stop.lines?.Line).map((l) => (typeof l === 'string' ? l : l.shortDescription));
+      const existing = byCodStop.get(stop.codStop);
+      if (existing) {
+        for (const line of lines) existing.lines.add(line);
+        continue;
+      }
+      byCodStop.set(stop.codStop, {
+        codStop: stop.codStop,
+        shortCodStop: stop.shortCodStop,
+        name: stop.name,
+        lat: stop.coordinates?.latitude,
+        lon: stop.coordinates?.longitude,
+        lines: new Set(lines),
+      });
+    }
+
+    const stops = [...byCodStop.values()].map((s) => ({ ...s, lines: [...s.lines] }));
+
+    res.set('Cache-Control', 'public, max-age=60');
     res.json({ stops });
   })
 );

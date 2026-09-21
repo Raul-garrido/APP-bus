@@ -39,9 +39,73 @@ function startPollLoop(fn, ms) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((el) => el.classList.add('hidden'));
   $(id).classList.remove('hidden');
+  // Un mapa de Leaflet que estaba oculto (display:none) no recalcula bien su tamaño en
+  // píxeles hasta que se le avisa -- si no, al volver a la pantalla inicial el mapa sale
+  // recortado o descuadrado hasta que se interactúa con él.
+  if (id === '#screen-home') homeMapState.map?.invalidateSize();
 }
 
-/* ---------- Pantalla inicial: tabs + búsquedas ---------- */
+/* ---------- Pantalla inicial: mapa + geolocalización + tabs de búsqueda ---------- */
+
+const homeMapState = { map: null, started: false };
+
+function initHomeMap() {
+  if (homeMapState.started) return;
+  homeMapState.started = true;
+
+  homeMapState.map = initMap('home-map');
+  const status = $('#home-status');
+
+  if (!('geolocation' in navigator)) {
+    status.textContent = 'Este navegador no da tu ubicación -- usa el buscador de arriba.';
+    return;
+  }
+
+  status.textContent = 'Buscando tu ubicación…';
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      const { latitude, longitude } = coords;
+      homeMapState.map.setView([latitude, longitude], 15);
+      L.circleMarker([latitude, longitude], {
+        radius: 7,
+        color: '#ffffff',
+        weight: 2,
+        fillColor: '#2563eb',
+        fillOpacity: 1,
+      }).addTo(homeMapState.map);
+
+      try {
+        const { stops } = await api.getNearbyStops(latitude, longitude);
+        renderNearbyStops(stops);
+        status.textContent = stops.length
+          ? `${stops.length} parada(s) interurbanas cerca -- tócalas para ver sus próximos buses`
+          : 'No hay paradas interurbanas cerca de ti';
+      } catch (err) {
+        status.textContent = `No se pudieron cargar las paradas cercanas: ${err.message}`;
+      }
+    },
+    () => {
+      status.textContent = 'Sin acceso a tu ubicación -- usa el buscador de arriba.';
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+
+function renderNearbyStops(stops) {
+  for (const stop of stops) {
+    if (!Number.isFinite(stop.lat) || !Number.isFinite(stop.lon)) continue;
+    L.circleMarker([stop.lat, stop.lon], {
+      radius: 6,
+      color: '#1e3a8a',
+      weight: 2,
+      fillColor: '#ffffff',
+      fillOpacity: 1,
+    })
+      .addTo(homeMapState.map)
+      .bindTooltip(stop.name || '', { direction: 'top' })
+      .on('click', () => openStop(stop));
+  }
+}
 
 function setupTabs() {
   document.querySelectorAll('.tab').forEach((btn) => {
@@ -422,6 +486,7 @@ $('#stop-refresh').addEventListener('click', () => startStopPolling());
 setupTabs();
 setupLineSearch();
 setupStopSearch();
+initHomeMap();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

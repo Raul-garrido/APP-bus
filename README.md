@@ -35,10 +35,11 @@ solo hace más llamadas de las estrictamente necesarias a `GetLines.php`/`GetLin
 
 ```
 api/
-  [...path].js       Adaptador para Vercel: expone server/app.js como función serverless
+  index.js            Adaptador para Vercel: expone server/app.js como función serverless
+                      (junto con el rewrite de vercel.json que manda /api/* aquí)
 server/
   app.js              Configura la app de Express (rutas + estáticos) -- la usan tanto
-                      server/index.js (local) como api/[...path].js (Vercel)
+                      server/index.js (local) como api/index.js (Vercel)
   index.js            Arranque local: app.listen(PORT), usado por `npm start`
   routes.js           Endpoints propios (ver abajo)
   crtmClient.js        Llamadas a la API de CRTM (crtm.es/widgets/api)
@@ -58,6 +59,7 @@ public/
 | `GET /api/lines/:codLine` | 1h | Itinerarios y paradas (con coordenadas) de una línea |
 | `GET /api/lines/:codLine/location` | sin caché | Posición en vivo de los buses de esa línea (ambos sentidos) |
 | `GET /api/stops?q=` | 2 min | Búsqueda de paradas |
+| `GET /api/stops/nearby?lat=&lon=` | 1 min | Paradas interurbanas a 400m de una coordenada (mapa de la pantalla inicial) |
 | `GET /api/stops/:codStop/times` | sin caché | Próximos pasos en tiempo real por esa parada |
 | `GET /api/debug/line-location?codItinerary=&codLine=&codStop=&direction=` | sin caché | Passthrough del JSON crudo de `GetLineLocation.php`, sin normalizar |
 
@@ -154,3 +156,12 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   se quedaba sirviendo el primer JS/CSS que vio. Si aun así una versión antigua se queda
   pegada en algún dispositivo, hay que borrar datos del sitio (o desinstalar y reinstalar la
   PWA) una vez -- después ya no debería volver a pasar.
+- **Pantalla inicial con mapa** (`#home-map` en `public/index.html`, `initHomeMap` en
+  `app.js`): en vez de una lista de texto vacía hasta buscar algo, la pantalla inicial es un
+  mapa a pantalla completa centrado en la ubicación del usuario (geolocalización del
+  navegador, con aviso si se deniega o no está disponible -- se queda en el centro de Madrid
+  por defecto) con las paradas interurbanas cercanas ya pulsables (abren la misma pantalla
+  de llegadas que al buscar una parada por texto). El buscador de línea/parada (con sus dos
+  pestañas de siempre) flota encima del mapa en vez de ocupar toda la pantalla. La
+  geolocalización y la carga de paradas cercanas solo se piden una vez por sesión, no cada
+  vez que se vuelve a esta pantalla.

@@ -14,26 +14,31 @@
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <!-- Pantalla inicial: buscador de línea o de parada -->
-  <section id="screen-home" class="screen">
-    <header class="home-header">
-      <h1>🚌 Bus CRTM en vivo</h1>
-    </header>
+  <!-- Pantalla inicial: mapa siempre visible (geolocalización + paradas cercanas
+       pulsables) con el buscador de línea o parada flotando encima -->
+  <section id="screen-home" class="screen screen--map-home">
+    <div id="home-map"></div>
 
-    <div class="tabs">
-      <button class="tab active" data-tab="lines">Por línea</button>
-      <button class="tab" data-tab="stops">Por parada</button>
+    <div class="home-overlay">
+      <h1 class="home-title">🚌 Bus CRTM en vivo</h1>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="lines">Por línea</button>
+        <button class="tab" data-tab="stops">Por parada</button>
+      </div>
+
+      <div id="tab-lines" class="tab-panel active">
+        <input id="line-search" type="search" inputmode="search" placeholder="Buscar línea (ej: 501, Alcorcón...)" autocomplete="off" />
+        <ul id="line-results" class="result-list"></ul>
+      </div>
+
+      <div id="tab-stops" class="tab-panel">
+        <input id="stop-search" type="search" inputmode="search" placeholder="Buscar parada (nombre, código, municipio...)" autocomplete="off" />
+        <ul id="stop-results" class="result-list"></ul>
+      </div>
     </div>
 
-    <div id="tab-lines" class="tab-panel active">
-      <input id="line-search" type="search" inputmode="search" placeholder="Buscar línea (ej: 501, Alcorcón...)" autocomplete="off" />
-      <ul id="line-results" class="result-list"></ul>
-    </div>
-
-    <div id="tab-stops" class="tab-panel">
-      <input id="stop-search" type="search" inputmode="search" placeholder="Buscar parada (nombre, código, municipio...)" autocomplete="off" />
-      <ul id="stop-results" class="result-list"></ul>
-    </div>
+    <div id="home-status" class="status-line status-line--floating"></div>
   </section>
 
   <!-- Pantalla de mapa: trazado de la línea + buses en vivo -->

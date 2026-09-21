@@ -31,14 +31,45 @@ body {
   display: none !important;
 }
 
-/* --- Pantalla inicial --- */
-.home-header {
-  padding: 20px 16px 8px;
+/* --- Pantalla inicial: mapa a pantalla completa + buscador flotando encima --- */
+.screen--map-home {
+  position: relative;
+  display: block; /* anula el flex column de .screen para poder posicionar el mapa */
 }
 
-.home-header h1 {
-  font-size: 1.35rem;
-  margin: 0;
+#home-map {
+  position: absolute;
+  inset: 0;
+}
+
+.home-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 500; /* por encima de los tiles y controles de Leaflet */
+  display: flex;
+  flex-direction: column;
+  max-height: 68vh;
+  background: white;
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 14px 16px 0;
+}
+
+.home-title {
+  font-size: 1.15rem;
+  margin: 4px 0 10px;
+}
+
+.status-line--floating {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.94);
+  text-align: center;
 }
 
 .tabs {
@@ -315,8 +346,11 @@ input[type='search'] {
   body {
     color: #e2e8f0;
   }
-  .map-header, .bus-chip-row, .bus-info-panel, .status-line, .direction-row {
+  .map-header, .bus-chip-row, .bus-info-panel, .status-line, .direction-row, .home-overlay {
     background: #1e293b;
+  }
+  .status-line--floating {
+    background: rgba(30, 41, 59, 0.94);
   }
   .direction-btn {
     background: #0f172a;
