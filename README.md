@@ -61,35 +61,44 @@ public/
 | `GET /api/stops/:codStop/times` | sin caché | Próximos pasos en tiempo real por esa parada |
 | `GET /api/debug/line-location?codItinerary=&codLine=&codStop=&direction=` | sin caché | Passthrough del JSON crudo de `GetLineLocation.php`, sin normalizar |
 
-## Sobre `GetLineLocation.php` (importante)
+## Sobre `GetLineLocation.php`
 
-**Este endpoint no está documentado en ningún sitio público conocido**, ni siquiera en los
-wrappers de terceros de esta misma API (se revisó `citram-python-api`, que documenta con
-ejemplos reales el resto de endpoints pero no este). El proyecto `busya` (otra app que
-consume esta misma API CRTM) llegó a probarlo y lo quitó: según su propio changelog, CRTM
-"no da ninguna forma fiable de saber qué vehículo concreto corresponde a qué hora
-programada" cuando hay varios vehículos en la misma línea+sentido.
+Este endpoint no está documentado en ningún sitio público conocido (ni siquiera en
+`citram-python-api`, que sí documenta con ejemplos el resto de la API CRTM), y el proyecto
+`busya` -- otra app que consume esta misma API -- llegó a probarlo y lo quitó de producción
+por no poder casarlo de forma fiable con una hora programada cuando hay varios vehículos en
+la misma línea+sentido. Ese problema no nos afecta igual: no intentamos casar el vehículo con
+`GetStopsTimes.php`, solo pintar su posición y calcular su próxima parada geométricamente
+(ver "Decisiones de diseño" más abajo).
 
-Este proyecto **no pudo hacer una petición de prueba real** contra `crtm.es` durante el
-desarrollo (el entorno donde se generó tenía el tráfico saliente a ese dominio bloqueado a
-nivel de red). Por eso `server/vehicleParser.js` no asume un formato exacto: recorre
-recursivamente la respuesta buscando objetos que "parezcan" un vehículo (un par de campos
-de coordenadas dentro del rango geográfico de Madrid) y prueba varios nombres de campo
-candidatos para latitud/longitud/rumbo/id de vehículo (`latitude`/`lat`, anidado bajo
-`coordinates`, `bearing`/`heading`/`rumbo`, `codVehicle`/`id`...).
+**Formato real, confirmado en vivo contra un despliegue con acceso normal a internet**
+(la línea 824 en horario de servicio, vía `GET /api/debug/line-location`):
 
-**Antes de dar esto por bueno en producción**, prueba en una máquina con acceso real a
-internet:
-
-```bash
-curl "http://localhost:3000/api/debug/line-location?codItinerary=<codItinerary>&codLine=<codLine>&codStop=<codStop>&direction=1"
+```json
+{
+  "vehiclesLocation": {
+    "VehicleLocation": {
+      "codVehicle": "0129MKN",
+      "line": { "codLine": "8__824___", "shortDescription": "824", "...": "..." },
+      "direction": 1,
+      "coordinates": { "longitude": -3.3488597869873047, "latitude": 40.51198196411133 },
+      "service": "6766"
+    }
+  }
+}
 ```
 
-(los tres primeros valores salen de `GET /api/lines/<codLine>`, en `itineraries[].codItinerary`,
-`itineraries[].direction` y el primer `itineraries[].stops[].codStop`). Si el JSON real no
-encaja con lo que `vehicleParser.js` espera, ajústalo con los nombres de campo reales — la
-lógica de detección por rango geográfico seguirá sirviendo como red de seguridad mientras
-tanto, pero un ajuste con datos reales siempre será más fiable que la heurística.
+(objeto suelto con un solo vehículo circulando, array de objetos con varios -- mismo patrón
+que el resto de la API). Puntos importantes que confirma esta respuesta real:
+
+- `codVehicle` es un identificador estable del vehículo físico (ej. `"0129MKN"`, matrícula o
+  similar) -- se usa como `id` para que la animación entre polls sepa qué icono es cuál.
+- **No hay ningún campo de rumbo/heading/bearing.** El cálculo del rumbo por el vector entre
+  la posición anterior y la nueva (`public/js/map.js`) no es un plan B: es la única fuente
+  de orientación del icono.
+- `server/vehicleParser.js` ya no necesita heurísticas -- lee directamente
+  `vehiclesLocation.VehicleLocation` con el mismo patrón objeto-suelto-o-array del resto de
+  `crtmClient.js`.
 
 ## Decisiones de diseño
 
@@ -108,6 +117,8 @@ tanto, pero un ajuste con datos reales siempre será más fiable que la heuríst
   posición anterior y la nueva (no salto brusco), en vez de una transición CSS pura sobre
   el marcador de Leaflet — así no interfiere con el paneo/zoom del mapa, que también mueve
   los marcadores por CSS transform internamente.
-- **Rumbo del icono**: usa el campo de rumbo de la API si `vehicleParser.js` lo encuentra;
-  si no, lo calcula como el ángulo entre la posición anterior y la nueva (con un umbral de
-  movimiento mínimo para no hacer temblar el icono cuando el bus está parado).
+- **Rumbo del icono**: CRTM no manda rumbo (ver arriba), así que siempre se calcula como el
+  ángulo entre la posición anterior y la nueva del propio vehículo, con un umbral de
+  movimiento mínimo para no hacer temblar el icono cuando el bus está parado. El código deja
+  preparado el uso de un campo de rumbo real si CRTM lo añadiera en el futuro (`vehicleParser.js`
+  siempre da un `heading`, aunque hoy sea siempre `null`), pero no es el caso hoy.
