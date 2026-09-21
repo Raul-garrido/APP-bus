@@ -124,15 +124,16 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   posición anterior y la nueva (no salto brusco), en vez de una transición CSS pura sobre
   el marcador de Leaflet — así no interfiere con el paneo/zoom del mapa, que también mueve
   los marcadores por CSS transform internamente.
-- **Icono del bus**: SVG propio (no una imagen externa, para no depender de ningún banco
-  con derechos) de un autobús lateral en el verde real de los interurbanos de Madrid. No
-  rota por un rumbo GPS calculado -- CRTM no lo manda, y además con una vista lateral
-  rotar por ángulos intermedios se vería mal (se "tumbaría"). En su lugar se espeja
-  (izquierda/derecha) según el **sentido real de la línea** (`direction` 1 o 2, dato fiable
-  de CRTM), que es justo el mismo dato que ya usa el selector de ida/vuelta. Si un vehículo
-  físico pasa a cubrir el otro sentido entre un servicio y el siguiente, el icono se
-  reespeja solo. El seleccionado se distingue con un halo ámbar, no con otro color de
-  carrocería (`public/js/busIcon.js`).
+- **Icono del bus**: `public/icons/bus-green.png`, generada por el usuario con Gemini (no
+  un banco de imágenes de terceros) y con el fondo original eliminado aquí mismo (estaba en
+  blanco sólido, no transparente de verdad, pese a que el PNG admitía canal alfa). Solo se
+  usa esa única imagen: no rota por un rumbo GPS calculado -- CRTM no lo manda, y además con
+  una vista lateral rotar por ángulos intermedios se vería mal (se "tumbaría"). En su lugar
+  se espeja (izquierda/derecha) según el **sentido real de la línea** (`direction` 1 o 2,
+  dato fiable de CRTM), el mismo que ya usa el selector de ida/vuelta -- así no hace falta
+  una segunda imagen para el otro sentido. Si un vehículo físico pasa a cubrir el otro
+  sentido entre un servicio y el siguiente, el icono se reespeja solo. El seleccionado se
+  distingue con un halo ámbar (`public/js/busIcon.js`).
 - **Sentido de circulación (ida/vuelta)**: una línea suele tener dos sentidos (`direction`
   1 y 2 en la API), y algunas además varias variantes de ramal por sentido (paradas "obs[...]"
   distintas para el mismo origen-destino -- la 824 real tiene 3 variantes por sentido). Se
@@ -145,3 +146,11 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   programa la siguiente vuelta solo cuando termina la actual (éxito o error) en vez de usar
   `setInterval` a ciegas, para que un intervalo corto no acabe solapando peticiones si CRTM
   tarda más de lo normal en responder.
+- **Service worker (`public/sw.js`)**: red primero, caché solo como red de seguridad sin
+  conexión -- no caché primero. Con caché primero, un despliegue nuevo podía tardar en
+  verse en un dispositivo que ya tuviera la PWA instalada: el propio `sw.js` no cambiaba de
+  contenido entre despliegues (solo cambiaban los archivos que cacheaba), así que el
+  navegador nunca detectaba que había una versión nueva del service worker que instalar, y
+  se quedaba sirviendo el primer JS/CSS que vio. Si aun así una versión antigua se queda
+  pegada en algún dispositivo, hay que borrar datos del sitio (o desinstalar y reinstalar la
+  PWA) una vez -- después ya no debería volver a pasar.

@@ -1,7 +1,13 @@
-// Service worker mínimo: solo cachea el "app shell" (assets estáticos) para que la PWA
-// instale y arranque rápido. Los datos en tiempo real (/api/*) nunca se cachean aquí --
-// eso ya lo gestiona el backend (server/cache.js) con TTLs distintos según el endpoint.
-const CACHE_NAME = 'app-bus-shell-v1';
+// Service worker mínimo: cachea el "app shell" (assets estáticos) para que la PWA instale
+// y, si no hay red, siga arrancando con la última versión vista. Los datos en tiempo real
+// (/api/*) nunca se cachean aquí -- eso ya lo gestiona el backend (server/cache.js).
+//
+// Estrategia red-primero (no caché-primero): con la app en desarrollo activo, servir desde
+// caché antes que la red hacía que un despliegue nuevo pudiera tardar en verse -- el propio
+// sw.js no cambiaba entre despliegues, así que el navegador nunca detectaba que había una
+// versión nueva del service worker que instalar. Red primero evita depender de acordarse de
+// tocar este archivo en cada cambio; la caché queda solo como red de seguridad sin conexión.
+const CACHE_NAME = 'app-bus-shell-v2';
 
 const APP_SHELL = [
   '/',
@@ -17,6 +23,7 @@ const APP_SHELL = [
   '/vendor/leaflet/leaflet.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/bus-green.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -41,17 +48,14 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return; // nunca cachear tiempo real
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
