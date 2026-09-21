@@ -208,6 +208,7 @@ function selectDirection(direction) {
   mapState.busLayer.clear();
   $('#bus-chip-row').innerHTML = '';
   refreshInfoPanel();
+  startLocationPolling(); // reinicia el poll ya mismo, no esperar al siguiente ciclo de 10s
 }
 
 function drawSelectedRoute() {
