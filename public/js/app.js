@@ -231,6 +231,7 @@ async function openLine(line) {
 
   try {
     const info = await api.getLineInfo(line.codLine);
+    $('#map-line-desc').textContent = info.description || line.description || '';
     mapState.itinerariesByDirection = new Map(info.itineraries.map((it) => [String(it.direction), it]));
     mapState.selectedDirection = info.itineraries[0] ? String(info.itineraries[0].direction) : null;
     renderDirectionButtons();
@@ -423,11 +424,12 @@ $('#map-refresh').addEventListener('click', () => startLocationPolling());
 
 /* ---------- Pantalla de parada (búsqueda por parada) ---------- */
 
-const stopState = { codStop: null, pollCancel: null };
+const stopState = { codStop: null, pollCancel: null, arrivals: [] };
 
 async function openStop(stop) {
   showScreen('#screen-stop');
   $('#stop-name').textContent = stop.name || stop.codStop;
+  $('#stop-filter').value = '';
   stopState.codStop = stop.codStop;
   startStopPolling();
 }
@@ -437,7 +439,8 @@ function startStopPolling() {
   stopState.pollCancel = startPollLoop(async () => {
     try {
       const { arrivals } = await api.getStopTimes(stopState.codStop);
-      renderArrivals(arrivals);
+      stopState.arrivals = arrivals;
+      applyStopFilter();
       $('#stop-status').textContent = `Actualizado ${new Date().toLocaleTimeString('es-ES')}`;
     } catch (err) {
       $('#stop-status').textContent = `No se pudo actualizar: ${err.message}`;
@@ -448,6 +451,16 @@ function startStopPolling() {
 function stopStopPolling() {
   if (stopState.pollCancel) stopState.pollCancel();
   stopState.pollCancel = null;
+}
+
+// Una parada de paso puede tener decenas de líneas; el filtro es solo del lado del
+// cliente sobre lo último ya cargado (stopState.arrivals), sin volver a llamar a CRTM.
+function applyStopFilter() {
+  const q = $('#stop-filter').value.trim().toLowerCase();
+  const filtered = q
+    ? stopState.arrivals.filter((a) => a.line.toLowerCase().includes(q) || a.destination.toLowerCase().includes(q))
+    : stopState.arrivals;
+  renderArrivals(filtered);
 }
 
 function renderArrivals(arrivals) {
@@ -470,9 +483,38 @@ function renderArrivals(arrivals) {
       <span class="result-desc">${a.destination}</span>
       <span class="arrival-eta">${etaText}</span>
     `;
+    if (a.codLine) {
+      li.classList.add('clickable');
+      li.addEventListener('click', () => openArrivalOnMap(a));
+    }
     list.appendChild(li);
   }
 }
+
+// Lleva al mapa de esa línea, con el sentido de esta llegada ya puesto. Si en ese momento
+// hay un único bus circulando en ese sentido, se selecciona solo -- con más de uno no se
+// puede saber con certeza cuál corresponde a esta llegada en concreto (CRTM no lo permite
+// casar de forma fiable, ver README), así que se deja elegir de la lista de chips.
+async function openArrivalOnMap(arrival) {
+  stopStopPolling();
+  await openLine({ codLine: arrival.codLine, shortDescription: arrival.line, description: '' });
+
+  const direction = String(arrival.direction);
+  if (mapState.itinerariesByDirection.has(direction)) selectDirection(direction);
+
+  try {
+    const { vehicles } = await api.getLineLocation(mapState.codLine);
+    const inDirection = vehicles.filter((v) => String(v.direction) === mapState.selectedDirection);
+    mapState.busLayer.update(inDirection);
+    renderBusChips(inDirection);
+    if (inDirection.length === 1) mapState.busLayer.select(inDirection[0].id);
+    refreshInfoPanel();
+  } catch {
+    // el poll normal que ya arrancó openLine/selectDirection se encarga igualmente
+  }
+}
+
+$('#stop-filter').addEventListener('input', applyStopFilter);
 
 $('#stop-back').addEventListener('click', () => {
   stopStopPolling();

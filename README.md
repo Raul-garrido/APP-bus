@@ -165,3 +165,13 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   pestañas de siempre) flota encima del mapa en vez de ocupar toda la pantalla. La
   geolocalización y la carga de paradas cercanas solo se piden una vez por sesión, no cada
   vez que se vuelve a esta pantalla.
+- **Filtro por línea en la pantalla de parada** (`applyStopFilter` en `app.js`): una parada
+  de paso puede tener decenas de líneas -- el filtro es puramente del lado del cliente sobre
+  la última respuesta ya cargada (`stopState.arrivals`), sin volver a llamar a CRTM en cada
+  tecla. Filtra por texto en la línea o en el destino.
+- **Tocar una llegada lleva al mapa de esa línea** con el sentido ya puesto (se sabe por el
+  propio dato de la llegada). Si en ese momento hay un único bus circulando en ese sentido,
+  se selecciona solo; con más de uno no se adivina cuál corresponde a esa llegada en
+  concreto -- el mismo problema, ya documentado arriba, de que CRTM no permite casar de
+  forma fiable un vehículo con una hora programada cuando hay varios en la misma
+  línea+sentido. Se deja elegir de la lista de chips en ese caso, en vez de seleccionar mal.

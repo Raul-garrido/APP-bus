@@ -314,6 +314,11 @@ input[type='search'] {
 }
 
 /* --- Lista de llegadas a parada --- */
+.stop-filter-input {
+  margin: 10px 10px 0;
+  width: calc(100% - 20px);
+}
+
 .arrivals-list {
   list-style: none;
   margin: 0;
@@ -328,6 +333,14 @@ input[type='search'] {
   gap: 12px;
   padding: 12px 8px;
   border-bottom: 1px solid var(--border);
+}
+
+.arrivals-list li.clickable {
+  cursor: pointer;
+}
+
+.arrivals-list li.clickable:active {
+  background: #eff6ff;
 }
 
 .arrival-eta {

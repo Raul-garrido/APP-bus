@@ -253,6 +253,7 @@ router.get(
       const secondsToArrival = Number.isFinite(parsed) ? Math.max(0, Math.round((parsed - now) / 1000)) : null;
       return {
         line: t.line?.shortDescription ?? '',
+        codLine: t.line?.codLine ?? null,
         destination: t.destination ?? '',
         direction: t.direction,
         secondsToArrival,
