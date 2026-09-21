@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 10000;
 
 async function fetchKmlText(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });

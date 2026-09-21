@@ -4,7 +4,13 @@
 // un resultado. `asArray` normaliza eso en un único sitio.
 
 const CRTM_BASE = 'https://www.crtm.es/widgets/api';
-const FETCH_TIMEOUT_MS = 8000;
+// GetLines.php devuelve TODAS las líneas interurbanas de golpe (no se puede filtrar por
+// texto en el propio CRTM, se filtra aquí después) -- en Vercel, una instancia fría sin la
+// caché de una invocación anterior puede tardar más de lo que parecía margen de sobra en
+// local (reportado en vivo: timeout con el margen anterior de 8s). Debe quedar por debajo
+// de `maxDuration` en vercel.json, con margen para la ruta que además espera a esto y
+// hace más llamadas después (GetLineLocation.php por cada sentido).
+const FETCH_TIMEOUT_MS = 15000;
 
 export const INTERURBAN_MODE = '8';
 

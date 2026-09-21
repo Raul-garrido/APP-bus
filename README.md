@@ -59,7 +59,7 @@ public/
 | `GET /api/lines/:codLine` | 1h | Itinerarios y paradas (con coordenadas) de una línea |
 | `GET /api/lines/:codLine/location` | sin caché | Posición en vivo de los buses de esa línea (ambos sentidos) |
 | `GET /api/stops?q=` | 2 min | Búsqueda de paradas |
-| `GET /api/stops/nearby?lat=&lon=` | 1 min | Paradas interurbanas a 400m de una coordenada (mapa de la pantalla inicial) |
+| `GET /api/stops/nearby?lat=&lon=` | 1 min | Paradas interurbanas a 500m de una coordenada (mapa de la pantalla inicial) |
 | `GET /api/stops/:codStop/times` | sin caché | Próximos pasos en tiempo real por esa parada |
 | `GET /api/debug/line-location?codItinerary=&codLine=&codStop=&direction=` | sin caché | Passthrough del JSON crudo de `GetLineLocation.php`, sin normalizar |
 
