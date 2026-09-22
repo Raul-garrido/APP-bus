@@ -499,27 +499,21 @@ function renderArrivals(arrivals) {
   }
 }
 
-// Lleva al mapa de esa línea, con el sentido de esta llegada ya puesto. Si en ese momento
-// hay un único bus circulando en ese sentido, se selecciona solo -- con más de uno no se
-// puede saber con certeza cuál corresponde a esta llegada en concreto (CRTM no lo permite
-// casar de forma fiable, ver README), así que se deja elegir de la lista de chips.
+// Lleva al mapa de esa línea, con el sentido de esta llegada ya puesto (dato fiable, viene
+// de la propia llegada). NO selecciona ningún bus automáticamente, ni siquiera si solo hay
+// uno visible en ese sentido: reportado en vivo que la llegada prevista por CRTM a veces no
+// se corresponde con ningún vehículo visible en una posición razonable (ninguno, uno que ya
+// pasó la parada, o uno a mucha más distancia de la que cuadraría con esos minutos) -- son
+// dos sistemas de CRTM independientes (predicción de horario vs. vehículos con seguimiento
+// SAE activo ahora mismo) que no siempre casan entre sí. Dar por hecho "el único visible es
+// el tuyo" sería una falsa seguridad; se deja elegir de la lista de chips, sabiendo que es
+// una elección manual.
 async function openArrivalOnMap(arrival) {
   stopStopPolling();
   await openLine({ codLine: arrival.codLine, shortDescription: arrival.line, description: '' });
 
   const direction = String(arrival.direction);
   if (mapState.itinerariesByDirection.has(direction)) selectDirection(direction);
-
-  try {
-    const { vehicles } = await api.getLineLocation(mapState.codLine);
-    const inDirection = vehicles.filter((v) => String(v.direction) === mapState.selectedDirection);
-    mapState.busLayer.update(inDirection);
-    renderBusChips(inDirection);
-    if (inDirection.length === 1) mapState.busLayer.select(inDirection[0].id);
-    refreshInfoPanel();
-  } catch {
-    // el poll normal que ya arrancó openLine/selectDirection se encarga igualmente
-  }
 }
 
 $('#stop-filter').addEventListener('input', applyStopFilter);

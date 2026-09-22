@@ -169,12 +169,21 @@ que el resto de la API). Puntos importantes que confirma esta respuesta real:
   de paso puede tener decenas de líneas -- el filtro es puramente del lado del cliente sobre
   la última respuesta ya cargada (`stopState.arrivals`), sin volver a llamar a CRTM en cada
   tecla. Filtra por texto en la línea o en el destino.
-- **Tocar una llegada lleva al mapa de esa línea** con el sentido ya puesto (se sabe por el
-  propio dato de la llegada). Si en ese momento hay un único bus circulando en ese sentido,
-  se selecciona solo; con más de uno no se adivina cuál corresponde a esa llegada en
-  concreto -- el mismo problema, ya documentado arriba, de que CRTM no permite casar de
-  forma fiable un vehículo con una hora programada cuando hay varios en la misma
-  línea+sentido. Se deja elegir de la lista de chips en ese caso, en vez de seleccionar mal.
+- **Tocar una llegada lleva al mapa de esa línea** con el sentido ya puesto (dato fiable,
+  viene de la propia llegada). No selecciona ningún bus automáticamente, ni siquiera cuando
+  solo hay uno visible en ese sentido -- inicialmente sí lo hacía en ese caso, pero se quitó
+  tras reportarse en vivo que la llegada prevista por CRTM a veces no se corresponde con
+  ningún vehículo en una posición razonable (ninguno visible, uno que ya pasó la parada, o
+  uno a mucha más distancia de la que cuadraría con esos minutos). Son dos sistemas de CRTM
+  independientes -- predicción de horario (`GetStopsTimes.php`) frente a vehículos con
+  seguimiento SAE activo ahora mismo (`GetLineLocation.php`) -- que no siempre casan entre
+  sí, y esto se confirmó que ocurre incluso cuando solo hay un bus visible en el sentido
+  correcto: no tiene por qué ser el de esa llegada en concreto. Se investigó a fondo si
+  existía una fuente de datos mejor (API oficial autenticada de CRTM, portales de datos
+  abiertos, posibles feeds GTFS-RT) y se confirmó que no la hay accesible públicamente: la
+  API autenticada que sí existe (`citram.es:8080/WSMultimodalInformation/...`, usada por
+  otro proyecto de terceros) devuelve exactamente los mismos campos que la pública que ya
+  usamos -- es el mismo sistema de CRTM visto por otra puerta, no un dato más fiable.
 - **La lista de llegadas de una parada usa `GetStopsTimes.php` (predicción propia de
   CRTM), no la posición GPS en vivo** (`GetLineLocation.php`, un sistema totalmente
   aparte). Son dos sistemas de CRTM independientes, y pueden no estar sincronizados entre
