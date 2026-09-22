@@ -40,9 +40,11 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach((el) => el.classList.add('hidden'));
   $(id).classList.remove('hidden');
   // Un mapa de Leaflet que estaba oculto (display:none) no recalcula bien su tamaño en
-  // píxeles hasta que se le avisa -- si no, al volver a la pantalla inicial el mapa sale
-  // recortado o descuadrado hasta que se interactúa con él.
+  // píxeles hasta que se le avisa -- si no, al volver a una pantalla con mapa ya creado de
+  // antes, el trazado/marcadores pueden salir mal posicionados o directamente no dibujarse
+  // (el propio fitBounds calcula con un tamaño de contenedor obsoleto).
   if (id === '#screen-home') homeMapState.map?.invalidateSize();
+  if (id === '#screen-map') mapState.map?.invalidateSize();
 }
 
 /* ---------- Pantalla inicial: mapa + geolocalización + tabs de búsqueda ---------- */
